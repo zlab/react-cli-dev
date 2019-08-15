@@ -12,7 +12,6 @@ const findExisting = (context, files) => {
 module.exports = (api, rootOptions) => {
   api.chainWebpack(webpackConfig => {
     const getAssetPath = require('../util/getAssetPath');
-    const shadowMode = !!process.env.VUE_CLI_CSS_SHADOW_MODE;
     const isProd = process.env.NODE_ENV === 'production';
 
     const defaultSassLoaderOptions = {};
@@ -36,7 +35,7 @@ module.exports = (api, rootOptions) => {
       requireModuleExtension = true;
     }
 
-    const shouldExtract = extract !== false && !shadowMode;
+    const shouldExtract = extract;
     const filename = getAssetPath(
       rootOptions,
       `css/[name]${rootOptions.filenameHashing ? '.[contenthash:8]' : ''}.css`,
@@ -86,14 +85,6 @@ module.exports = (api, rootOptions) => {
     function createCSSRule(lang, test, loader, options) {
       const baseRule = webpackConfig.module.rule(lang).test(test);
 
-      // rules for <style lang="module">
-      const vueModulesRule = baseRule.oneOf('vue-modules').resourceQuery(/module/);
-      applyLoaders(vueModulesRule, true);
-
-      // rules for <style>
-      const vueNormalRule = baseRule.oneOf('vue').resourceQuery(/\?vue/);
-      applyLoaders(vueNormalRule, false);
-
       // rules for *.module.* files
       const extModulesRule = baseRule.oneOf('normal-modules').test(/\.module\.\w+$/);
       applyLoaders(extModulesRule, true);
@@ -113,11 +104,11 @@ module.exports = (api, rootOptions) => {
             });
         } else {
           rule
-            .use('vue-style-loader')
-            .loader('vue-style-loader')
+            .use('style-loader')
+            .loader('style-loader')
             .options({
               sourceMap,
-              shadowMode,
+              shadowMode: false,
             });
         }
 

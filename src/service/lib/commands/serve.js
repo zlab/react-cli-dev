@@ -1,7 +1,6 @@
 const {
   info,
   openBrowser,
-  IpcMessenger,
 } = require('@vue/cli-shared-utils');
 
 const defaults = {
@@ -13,7 +12,7 @@ const defaults = {
 module.exports = (api, options) => {
   api.registerCommand('serve', {
     description: 'start development server',
-    usage: 'vue-cli-service serve [options] [entry]',
+    usage: 'react-cli-service serve [options] [entry]',
     options: {
       '--open': `open browser on server start`,
       '--copy': `copy url to clipboard on server start`,
@@ -45,8 +44,7 @@ module.exports = (api, options) => {
     // configs that only matters for dev server
     api.chainWebpack(webpackConfig => {
       if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
-        webpackConfig
-          .devtool('cheap-module-eval-source-map');
+        webpackConfig.devtool('cheap-module-eval-source-map');
 
         webpackConfig
           .plugin('hmr')
@@ -58,7 +56,7 @@ module.exports = (api, options) => {
           .output
           .globalObject(`(typeof self !== 'undefined' ? self : this)`);
 
-        if (!process.env.VUE_CLI_TEST && options.devServer.progress !== false) {
+        if (options.devServer.progress !== false) {
           webpackConfig
             .plugin('progress')
             .use(require('webpack/lib/ProgressPlugin'));
@@ -78,14 +76,6 @@ module.exports = (api, options) => {
       webpackConfig.devServer || {},
       options.devServer,
     );
-
-    // expose advanced stats
-    if (args.dashboard) {
-      const DashboardPlugin = require('../webpack/DashboardPlugin')
-      ;(webpackConfig.plugins = webpackConfig.plugins || []).push(new DashboardPlugin({
-        type: 'serve',
-      }));
-    }
 
     // entry arg
     const entry = args._[0];
@@ -201,19 +191,6 @@ module.exports = (api, options) => {
       });
     });
 
-    // on appveyor, killing the process with SIGTERM causes execa to
-    // throw error
-    if (process.env.VUE_CLI_TEST) {
-      process.stdin.on('data', data => {
-        if (data.toString() === 'close') {
-          console.log('got close signal!');
-          server.close(() => {
-            process.exit(0);
-          });
-        }
-      });
-    }
-
     return new Promise((resolve, reject) => {
       // log instructions & open browser on first compilation complete
       let isFirstCompile = true;
@@ -277,25 +254,12 @@ module.exports = (api, options) => {
             openBrowser(localUrlForBrowser + pageUri);
           }
 
-          // Send final app URL
-          if (args.dashboard) {
-            const ipc = new IpcMessenger();
-            ipc.send({
-              vueServe: {
-                url: localUrlForBrowser,
-              },
-            });
-          }
-
           // resolve returned Promise
           // so other commands can do api.service.run('serve').then(...)
           resolve({
             server,
             url: localUrlForBrowser,
           });
-        } else if (process.env.VUE_CLI_TEST) {
-          // signal for test to check HMR
-          console.log('App updated');
         }
       });
 

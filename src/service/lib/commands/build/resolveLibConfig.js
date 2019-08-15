@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-module.exports = (api, { entry, name, formats, filename }, options) => {
+module.exports = (api, { entry, name, formats, filename }) => {
   const { log, error } = require('@vue/cli-shared-utils');
   const abort = msg => {
     log();
@@ -13,18 +13,17 @@ module.exports = (api, { entry, name, formats, filename }, options) => {
 
   if (!fs.existsSync(fullEntryPath)) {
     abort(
-      `Failed to resolve lib entry: ${entry}${entry === `src/App.vue` ? ' (default)' : ''}. ` +
+      `Failed to resolve lib entry: ${entry}. ` +
       `Make sure to specify the correct entry file.`,
     );
   }
 
-  const isVueEntry = /\.vue$/.test(entry);
   const libName = (
     name ||
     (
       api.service.pkg.name
         ? api.service.pkg.name.replace(/^@.+\//, '')
-        : path.basename(entry).replace(/\.(jsx?|vue)$/, '')
+        : path.basename(entry).replace(/\.(jsx?)$/, '')
     )
   );
   filename = filename || libName;
@@ -61,16 +60,16 @@ module.exports = (api, { entry, name, formats, filename }, options) => {
     config
       .externals({
         ...config.get('externals'),
-        vue: {
-          commonjs: 'vue',
-          commonjs2: 'vue',
-          root: 'Vue',
+        react: {
+          commonjs: 'react',
+          commonjs2: 'react',
+          root: 'React',
         },
       });
 
     // inject demo page for umd
     if (genHTML) {
-      const template = isVueEntry ? 'demo-lib.html' : 'demo-lib-js.html';
+      const template = 'demo-lib-js.html';
       config
         .plugin('demo-html')
         .use(require('html-webpack-plugin'), [{
@@ -98,11 +97,9 @@ module.exports = (api, { entry, name, formats, filename }, options) => {
     let realEntry = require.resolve('./entry-lib.js');
 
     // avoid importing default if user entry file does not have default export
-    if (!isVueEntry) {
-      const entryContent = fs.readFileSync(fullEntryPath, 'utf-8');
-      if (!/\b(export\s+default|export\s{[^}]+as\s+default)\b/.test(entryContent)) {
-        realEntry = require.resolve('./entry-lib-no-default.js');
-      }
+    const entryContent = fs.readFileSync(fullEntryPath, 'utf-8');
+    if (!/\b(export\s+default|export\s{[^}]+as\s+default)\b/.test(entryContent)) {
+      realEntry = require.resolve('./entry-lib-no-default.js');
     }
 
     rawConfig.entry = {
@@ -111,7 +108,7 @@ module.exports = (api, { entry, name, formats, filename }, options) => {
 
     rawConfig.output = Object.assign({
       library: libName,
-      libraryExport: isVueEntry ? 'default' : undefined,
+      libraryExport: undefined,
       libraryTarget: format,
       // preserve UDM header from webpack 3 until webpack provides either
       // libraryTarget: 'esm' or target: 'universal'

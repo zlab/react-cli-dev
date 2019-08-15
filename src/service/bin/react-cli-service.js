@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { error } = require('../../utils');
+const { error } = require('@vue/cli-shared-utils');
 
 const rawArgv = process.argv.slice(2);
 const args = require('minimist')(rawArgv);

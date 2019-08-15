@@ -20,13 +20,12 @@ module.exports = (api, options) => {
     }
 
     const isProd = process.env.NODE_ENV === 'production';
-    const isLegacyBundle = process.env.VUE_CLI_MODERN_MODE && !process.env.VUE_CLI_MODERN_BUILD;
     const outputDir = api.resolve(options.outputDir);
 
     const getAssetPath = require('../util/getAssetPath');
     const outputFilename = getAssetPath(
       options,
-      `js/[name]${isLegacyBundle ? `-legacy` : ``}${isProd && options.filenameHashing ? '.[contenthash:8]' : ''}.js`,
+      `js/[name]}${isProd && options.filenameHashing ? '.[contenthash:8]' : ''}.js`,
     );
     webpackConfig
       .output
@@ -162,23 +161,21 @@ module.exports = (api, options) => {
         .plugin('html')
         .use(HTMLPlugin, [htmlOptions]);
 
-      if (!isLegacyBundle) {
-        // inject preload/prefetch to HTML
-        webpackConfig
-          .plugin('preload')
-          .use(PreloadPlugin, [{
-            rel: 'preload',
-            include: 'initial',
-            fileBlacklist: [/\.map$/, /hot-update\.js$/],
-          }]);
+      // inject preload/prefetch to HTML
+      webpackConfig
+        .plugin('preload')
+        .use(PreloadPlugin, [{
+          rel: 'preload',
+          include: 'initial',
+          fileBlacklist: [/\.map$/, /hot-update\.js$/],
+        }]);
 
-        webpackConfig
-          .plugin('prefetch')
-          .use(PreloadPlugin, [{
-            rel: 'prefetch',
-            include: 'asyncChunks',
-          }]);
-      }
+      webpackConfig
+        .plugin('prefetch')
+        .use(PreloadPlugin, [{
+          rel: 'prefetch',
+          include: 'asyncChunks',
+        }]);
     } else {
       // multi-page setup
       webpackConfig.entryPoints.clear();
@@ -240,36 +237,34 @@ module.exports = (api, options) => {
           .use(HTMLPlugin, [pageHtmlOptions]);
       });
 
-      if (!isLegacyBundle) {
-        pages.forEach(name => {
-          const filename = ensureRelative(
-            outputDir,
-            normalizePageConfig(multiPageConfig[name]).filename || `${name}.html`,
-          );
-          webpackConfig
-            .plugin(`preload-${name}`)
-            .use(PreloadPlugin, [{
-              rel: 'preload',
-              includeHtmlNames: [filename],
-              include: {
-                type: 'initial',
-                entries: [name],
-              },
-              fileBlacklist: [/\.map$/, /hot-update\.js$/],
-            }]);
+      pages.forEach(name => {
+        const filename = ensureRelative(
+          outputDir,
+          normalizePageConfig(multiPageConfig[name]).filename || `${name}.html`,
+        );
+        webpackConfig
+          .plugin(`preload-${name}`)
+          .use(PreloadPlugin, [{
+            rel: 'preload',
+            includeHtmlNames: [filename],
+            include: {
+              type: 'initial',
+              entries: [name],
+            },
+            fileBlacklist: [/\.map$/, /hot-update\.js$/],
+          }]);
 
-          webpackConfig
-            .plugin(`prefetch-${name}`)
-            .use(PreloadPlugin, [{
-              rel: 'prefetch',
-              includeHtmlNames: [filename],
-              include: {
-                type: 'asyncChunks',
-                entries: [name],
-              },
-            }]);
-        });
-      }
+        webpackConfig
+          .plugin(`prefetch-${name}`)
+          .use(PreloadPlugin, [{
+            rel: 'prefetch',
+            includeHtmlNames: [filename],
+            include: {
+              type: 'asyncChunks',
+              entries: [name],
+            },
+          }]);
+      });
     }
 
     // CORS and Subresource Integrity
@@ -285,7 +280,7 @@ module.exports = (api, options) => {
 
     // copy static assets in public/
     const publicDir = api.resolve('public');
-    if (!isLegacyBundle && fs.existsSync(publicDir)) {
+    if (fs.existsSync(publicDir)) {
       webpackConfig
         .plugin('copy')
         .use(require('copy-webpack-plugin'), [[{

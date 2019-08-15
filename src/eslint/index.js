@@ -43,7 +43,7 @@ module.exports = (api, options) => {
         .add(/node_modules/)
         .add(path.dirname(require.resolve('@vue/cli-service')))
         .end()
-        .test(/\.(vue|(j|t)sx?)$/)
+        .test(/\.((j|t)sx?)$/)
         .use('eslint-loader')
         .loader('eslint-loader')
         .options({
@@ -66,7 +66,7 @@ module.exports = (api, options) => {
     'lint',
     {
       description: 'lint and fix source files',
-      usage: 'vue-cli-service lint [options] [...files]',
+      usage: 'react-cli-service lint [options] [...files]',
       options: {
         '--format [formatter]': 'specify formatter (default: codeframe)',
         '--no-fix': 'do not fix errors or warnings',

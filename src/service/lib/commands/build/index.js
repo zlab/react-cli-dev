@@ -26,7 +26,6 @@ module.exports = (api, options) => {
     options: {
       '--mode': `specify env mode (default: production)`,
       '--dest': `specify output directory (default: ${options.outputDir})`,
-      '--modern': `build app targeting modern browsers with auto fallback`,
       '--no-unsafe-inline': `build app without introducing inline scripts`,
       '--target': `app | lib | wc | wc-async (default: ${defaults.target})`,
       '--formats': `list of output formats for library builds (default: ${defaults.formats})`,
@@ -34,8 +33,6 @@ module.exports = (api, options) => {
       '--filename': `file name for output, only usable for 'lib' target (default: value of --name)`,
       '--no-clean': `do not remove the dist directory before building the project`,
       '--report': `generate report.html to help analyze bundle content`,
-      '--report-json': 'generate report.json to help analyze bundle content',
-      '--watch': `watch for changes`,
     },
   }, async (args, rawArgs) => {
     for (const key in defaults) {
@@ -49,42 +46,9 @@ module.exports = (api, options) => {
     }
 
     process.env.VUE_CLI_BUILD_TARGET = args.target;
-    if (args.modern && args.target === 'app') {
-      process.env.VUE_CLI_MODERN_MODE = true;
-      if (!process.env.VUE_CLI_MODERN_BUILD) {
-        // main-process for legacy build
-        await build(Object.assign({}, args, {
-          modernBuild: false,
-          keepAlive: true,
-        }), api, options);
-        // spawn sub-process of self for modern build
-        const execa = require('execa');
-        const cliBin = require('path').resolve(__dirname, '../../../bin/vue-cli-service.js');
-        await execa(cliBin, ['build', ...rawArgs], {
-          stdio: 'inherit',
-          env: {
-            VUE_CLI_MODERN_BUILD: true,
-          },
-        });
-      } else {
-        // sub-process for modern build
-        await build(Object.assign({}, args, {
-          modernBuild: true,
-          clean: false,
-        }), api, options);
-      }
-      delete process.env.VUE_CLI_MODERN_MODE;
-    } else {
-      if (args.modern) {
-        const { warn } = require('@vue/cli-shared-utils');
-        warn(
-          `Modern mode only works with default target (app). ` +
-          `For libraries or web components, use the browserslist ` +
-          `config to specify target browsers.`,
-        );
-      }
-      await build(args, api, options);
-    }
+
+    await build(args, api, options);
+
     delete process.env.VUE_CLI_BUILD_TARGET;
   });
 };
@@ -107,12 +71,7 @@ async function build(args, api, options) {
   log();
   const mode = api.service.mode;
   if (args.target === 'app') {
-    const bundleTag = args.modern
-      ? args.modernBuild
-        ? `modern bundle `
-        : `legacy bundle `
-      : ``;
-    logWithSpinner(`Building ${bundleTag}for ${mode}...`);
+    logWithSpinner(`Building for ${mode}...`);
   } else {
     const buildMode = buildModes[args.target];
     if (buildMode) {
@@ -129,17 +88,11 @@ async function build(args, api, options) {
   }
 
   const targetDir = api.resolve(options.outputDir);
-  const isLegacyBuild = args.target === 'app' && args.modern && !args.modernBuild;
 
   // resolve raw webpack config
   let webpackConfig;
   if (args.target === 'lib') {
     webpackConfig = require('./resolveLibConfig')(api, args, options);
-  } else if (
-    args.target === 'wc' ||
-    args.target === 'wc-async'
-  ) {
-    webpackConfig = require('./resolveWcConfig')(api, args, options);
   } else {
     webpackConfig = require('./resolveAppConfig')(api, args, options);
   }
@@ -147,37 +100,17 @@ async function build(args, api, options) {
   // check for common config errors
   validateWebpackConfig(webpackConfig, api, options, args.target);
 
-  if (args.watch) {
-    modifyConfig(webpackConfig, config => {
-      config.watch = true;
-    });
-  }
-
-  // Expose advanced stats
-  if (args.dashboard) {
-    const DashboardPlugin = require('../../webpack/DashboardPlugin');
-    modifyConfig(webpackConfig, config => {
-      config.plugins.push(new DashboardPlugin({
-        type: 'build',
-        modernBuild: args.modernBuild,
-        keepAlive: args.keepAlive,
-      }));
-    });
-  }
-
-  if (args.report || args['report-json']) {
+  if (args.report) {
     const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
     modifyConfig(webpackConfig, config => {
       const bundleName = args.target !== 'app'
         ? config.output.filename.replace(/\.js$/, '-')
-        : isLegacyBuild ? 'legacy-' : '';
+        : '';
       config.plugins.push(new BundleAnalyzerPlugin({
         logLevel: 'warn',
         openAnalyzer: false,
         analyzerMode: args.report ? 'static' : 'disabled',
         reportFilename: `${bundleName}report.html`,
-        statsFilename: `${bundleName}report.json`,
-        generateStatsFile: !!args['report-json'],
       }));
     });
   }
@@ -203,19 +136,9 @@ async function build(args, api, options) {
           targetDir,
         );
         log(formatStats(stats, targetDirShort, api));
-        if (args.target === 'app' && !isLegacyBuild) {
-          if (!args.watch) {
-            done(`Build complete. The ${chalk.cyan(targetDirShort)} directory is ready to be deployed.`);
-            info(`Check out deployment instructions at ${chalk.cyan(`https://cli.vuejs.org/guide/deployment.html`)}\n`);
-          } else {
-            done(`Build complete. Watching for changes...`);
-          }
+        if (args.target === 'app') {
+          done(`Build complete. The ${chalk.cyan(targetDirShort)} directory is ready to be deployed.`);
         }
-      }
-
-      // test-only signal
-      if (process.env.VUE_CLI_TEST) {
-        console.log('Build complete.');
       }
 
       resolve();

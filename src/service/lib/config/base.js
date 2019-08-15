@@ -2,7 +2,6 @@ const webpack = require('webpack');
 
 module.exports = (api, options) => {
   api.chainWebpack(webpackConfig => {
-    const isLegacyBundle = process.env.VUE_CLI_MODERN_MODE && !process.env.VUE_CLI_MODERN_BUILD;
     const resolveLocal = require('../util/resolveLocal');
     const getAssetPath = require('../util/getAssetPath');
     const inlineLimit = 4096;
@@ -35,12 +34,12 @@ module.exports = (api, options) => {
       .end()
       .output
       .path(api.resolve(options.outputDir))
-      .filename(isLegacyBundle ? '[name]-legacy.js' : '[name].js')
+      .filename('[name].js')
       .publicPath(options.publicPath);
 
     webpackConfig.resolve
       .extensions
-      .merge(['.mjs', '.js', '.jsx', '.vue', '.json', '.wasm'])
+      .merge(['.mjs', '.js', '.jsx', '.json', '.wasm'])
       .end()
       .modules
       .add('node_modules')
@@ -48,13 +47,7 @@ module.exports = (api, options) => {
       .add(resolveLocal('node_modules'))
       .end()
       .alias
-      .set('@', api.resolve('src'))
-      .set(
-        'vue$',
-        options.runtimeCompiler
-          ? 'vue/dist/vue.esm.js'
-          : 'vue/dist/vue.runtime.esm.js',
-      );
+      .set('src', api.resolve('src'));
 
     webpackConfig.resolveLoader
       .modules
@@ -62,37 +55,7 @@ module.exports = (api, options) => {
       .add(api.resolve('node_modules'))
       .add(resolveLocal('node_modules'));
 
-    webpackConfig.module
-      .noParse(/^(vue|vue-router|vuex|vuex-router-sync)$/);
-
     // js is handled by cli-plugin-babel ---------------------------------------
-
-    // vue-loader --------------------------------------------------------------
-    const vueLoaderCacheConfig = api.genCacheConfig('vue-loader', {
-      'vue-loader': require('vue-loader/package.json').version,
-      /* eslint-disable-next-line node/no-extraneous-require */
-      '@vue/component-compiler-utils': require('@vue/component-compiler-utils/package.json').version,
-      'vue-template-compiler': require('vue-template-compiler/package.json').version,
-    });
-
-    webpackConfig.module
-      .rule('vue')
-      .test(/\.vue$/)
-      .use('cache-loader')
-      .loader('cache-loader')
-      .options(vueLoaderCacheConfig)
-      .end()
-      .use('vue-loader')
-      .loader('vue-loader')
-      .options(Object.assign({
-        compilerOptions: {
-          whitespace: 'condense',
-        },
-      }, vueLoaderCacheConfig));
-
-    webpackConfig
-      .plugin('vue-loader')
-      .use(require('vue-loader/lib/plugin'));
 
     // static assets -----------------------------------------------------------
 
