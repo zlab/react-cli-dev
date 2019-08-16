@@ -1,6 +1,5 @@
 const path = require('path');
 const hash = require('hash-sum');
-const semver = require('semver');
 const { matchesPluginId } = require('@vue/cli-shared-utils');
 
 // Note: if a plugin-registered command needs to run in a specific default mode,
@@ -11,33 +10,11 @@ const { matchesPluginId } = require('@vue/cli-shared-utils');
 class PluginAPI {
   /**
    * @param {string} id - Id of the plugin.
-   * @param {Service} service - A vue-cli-service instance.
+   * @param {Service} service - A cli-service instance.
    */
   constructor(id, service) {
     this.id = id;
     this.service = service;
-  }
-
-  get version() {
-    return require('../package.json').version;
-  }
-
-  assertVersion(range) {
-    if (typeof range === 'number') {
-      if (!Number.isInteger(range)) {
-        throw new Error('Expected string or integer value.');
-      }
-      range = `^${range}.0.0-0`;
-    }
-    if (typeof range !== 'string') {
-      throw new Error('Expected string or integer value.');
-    }
-
-    if (semver.satisfies(this.version, range)) return;
-
-    throw new Error(
-      `Require @vue/cli-service "${range}", but was loaded with "${this.version}".`,
-    );
   }
 
   /**
@@ -68,7 +45,7 @@ class PluginAPI {
   }
 
   /**
-   * Register a command that will become available as `vue-cli-service [name]`.
+   * Register a command that will become available as `react-cli-service [name]`.
    *
    * @param {string} name
    * @param {object} [opts]
@@ -176,6 +153,7 @@ class PluginAPI {
     if (!Array.isArray(configFiles)) {
       configFiles = [configFiles];
     }
+
     configFiles = configFiles.concat([
       'package-lock.json',
       'yarn.lock',

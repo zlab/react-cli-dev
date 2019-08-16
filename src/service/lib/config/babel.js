@@ -54,17 +54,9 @@ module.exports = (api, options) => {
       .end();
 
     if (useThreads) {
-      const threadLoaderConfig = jsRule
-        .use('thread-loader')
-        .loader('thread-loader');
-
-      if (typeof options.parallel === 'number') {
-        threadLoaderConfig.options({ workers: options.parallel });
-      }
+      jsRule.use('thread-loader').loader('thread-loader');
     }
 
-    jsRule
-      .use('babel-loader')
-      .loader('babel-loader');
+    jsRule.use('babel-loader').loader('babel-loader');
   });
 };

@@ -56,7 +56,7 @@ module.exports = (api, { entry, name, formats, filename }) => {
       config.optimization.minimize(false);
     }
 
-    // externalize Vue in case user imports it
+    // externalize React in case user imports it
     config
       .externals({
         ...config.get('externals'),

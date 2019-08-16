@@ -60,6 +60,7 @@ module.exports = class Service {
     if (this.projectOptions.chainWebpack) {
       this.webpackChainFns.push(this.projectOptions.chainWebpack);
     }
+
     if (this.projectOptions.configureWebpack) {
       this.webpackRawConfigFns.push(this.projectOptions.configureWebpack);
     }
@@ -125,10 +126,7 @@ module.exports = class Service {
   }
 
   async run(name, args = {}, rawArgv = []) {
-    // resolve mode
-    // prioritize inline --mode
-    // fallback to resolved default modes from plugins or development if --watch is defined
-    const mode = args.mode || (name === 'build' ? 'development' : this.modes[name]);
+    const mode = this.modes[name];
 
     // load env variables, load user config, apply plugins
     this.init(mode);
@@ -157,9 +155,6 @@ module.exports = class Service {
   }
 
   resolveWebpackConfig(chainableConfig = this.resolveChainableWebpackConfig()) {
-    if (!this.initialized) {
-      throw new Error('Service must call init() before calling resolveWebpackConfig().');
-    }
     // get raw config
     let config = chainableConfig.toConfig();
     const original = config;
@@ -177,7 +172,7 @@ module.exports = class Service {
 
     // #2206 If config is merged by merge-webpack, it discards the __ruleNames
     // information injected by webpack-chain. Restore the info so that
-    // vue inspect works properly.
+    // inspect works properly.
     if (config !== original) {
       cloneRuleNames(
         config.module && config.module.rules,
@@ -226,12 +221,12 @@ module.exports = class Service {
     if (options.css && typeof options.css.modules !== 'undefined') {
       if (typeof options.css.requireModuleExtension !== 'undefined') {
         warn(
-          `You have set both "css.modules" and "css.requireModuleExtension" in ${chalk.bold('vue.config.js')}, ` +
+          `You have set both "css.modules" and "css.requireModuleExtension" in ${chalk.bold('react.config.js')}, ` +
           `"css.modules" will be ignored in favor of "css.requireModuleExtension".`,
         );
       } else {
         warn(
-          `"css.modules" option in ${chalk.bold('vue.config.js')} ` +
+          `"css.modules" option in ${chalk.bold('react.config.js')} ` +
           `is deprecated now, please use "css.requireModuleExtension" instead.`,
         );
         options.css.requireModuleExtension = !options.css.modules;

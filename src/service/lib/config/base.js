@@ -93,24 +93,6 @@ module.exports = (api, options) => {
 
     // Other common pre-processors ---------------------------------------------
 
-    webpackConfig.module
-      .rule('pug')
-      .test(/\.pug$/)
-      .oneOf('pug-vue')
-      .resourceQuery(/vue/)
-      .use('pug-plain-loader')
-      .loader('pug-plain-loader')
-      .end()
-      .end()
-      .oneOf('pug-template')
-      .use('raw')
-      .loader('raw-loader')
-      .end()
-      .use('pug-plain-loader')
-      .loader('pug-plain-loader')
-      .end()
-      .end();
-
     // shims
 
     webpackConfig.node

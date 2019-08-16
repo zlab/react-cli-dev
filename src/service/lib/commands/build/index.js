@@ -22,7 +22,7 @@ const modifyConfig = (config, fn) => {
 module.exports = (api, options) => {
   api.registerCommand('build', {
     description: 'build for production',
-    usage: 'vue-cli-service build [options] [entry|pattern]',
+    usage: 'react-cli-service build [options] [entry|pattern]',
     options: {
       '--mode': `specify env mode (default: production)`,
       '--dest': `specify output directory (default: ${options.outputDir})`,
@@ -34,7 +34,7 @@ module.exports = (api, options) => {
       '--no-clean': `do not remove the dist directory before building the project`,
       '--report': `generate report.html to help analyze bundle content`,
     },
-  }, async (args, rawArgs) => {
+  }, async (args) => {
     for (const key in defaults) {
       if (args[key] == null) {
         args[key] = defaults[key];
@@ -42,7 +42,7 @@ module.exports = (api, options) => {
     }
     args.entry = args.entry || args._[0];
     if (args.target !== 'app') {
-      args.entry = args.entry || 'src/App.vue';
+      args.entry = args.entry || 'src/main.js';
     }
 
     process.env.VUE_CLI_BUILD_TARGET = args.target;
@@ -103,13 +103,11 @@ async function build(args, api, options) {
   if (args.report) {
     const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
     modifyConfig(webpackConfig, config => {
-      const bundleName = args.target !== 'app'
-        ? config.output.filename.replace(/\.js$/, '-')
-        : '';
+      const bundleName = args.target !== 'app' ? config.output.filename.replace(/\.js$/, '-') : '';
       config.plugins.push(new BundleAnalyzerPlugin({
         logLevel: 'warn',
         openAnalyzer: false,
-        analyzerMode: args.report ? 'static' : 'disabled',
+        analyzerMode: 'static',
         reportFilename: `${bundleName}report.html`,
       }));
     });
@@ -122,6 +120,7 @@ async function build(args, api, options) {
   return new Promise((resolve, reject) => {
     webpack(webpackConfig, (err, stats) => {
       stopSpinner(false);
+
       if (err) {
         return reject(err);
       }

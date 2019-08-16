@@ -37,19 +37,11 @@ module.exports = (api, projectOptions) => {
     });
 
     if (useThreads) {
-      addLoader({
-        loader: 'thread-loader',
-        options:
-          typeof projectOptions.parallel === 'number'
-            ? { workers: projectOptions.parallel }
-            : {},
-      });
+      addLoader({ loader: 'thread-loader' });
     }
 
     if (api.hasPlugin('babel')) {
-      addLoader({
-        loader: 'babel-loader',
-      });
+      addLoader({ loader: 'babel-loader' });
     }
     addLoader({
       loader: 'ts-loader',

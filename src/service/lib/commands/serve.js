@@ -6,7 +6,6 @@ const {
 const defaults = {
   host: '0.0.0.0',
   port: 8080,
-  https: false,
 };
 
 module.exports = (api, options) => {
@@ -15,12 +14,6 @@ module.exports = (api, options) => {
     usage: 'react-cli-service serve [options] [entry]',
     options: {
       '--open': `open browser on server start`,
-      '--copy': `copy url to clipboard on server start`,
-      '--mode': `specify env mode (default: development)`,
-      '--host': `specify host (default: ${defaults.host})`,
-      '--port': `specify port (default: ${defaults.port})`,
-      '--https': `use https (default: ${defaults.https})`,
-      '--public': `specify the public network URL for the HMR client`,
     },
   }, async function serve(args) {
     info('Starting development server...');
@@ -39,7 +32,6 @@ module.exports = (api, options) => {
     const prepareProxy = require('../util/prepareProxy');
     const launchEditorMiddleware = require('launch-editor-middleware');
     const validateWebpackConfig = require('../util/validateWebpackConfig');
-    const isAbsoluteUrl = require('../util/isAbsoluteUrl');
 
     // configs that only matters for dev server
     api.chainWebpack(webpackConfig => {
@@ -51,7 +43,6 @@ module.exports = (api, options) => {
           .use(require('webpack/lib/HotModuleReplacementPlugin'));
 
         // https://github.com/webpack/webpack/issues/6642
-        // https://github.com/vuejs/vue-cli/issues/3539
         webpackConfig
           .output
           .globalObject(`(typeof self !== 'undefined' ? self : this)`);
@@ -86,12 +77,12 @@ module.exports = (api, options) => {
     }
 
     // resolve server options
-    const useHttps = args.https || projectDevServerOptions.https || defaults.https;
+    const useHttps = false;
     const protocol = useHttps ? 'https' : 'http';
-    const host = args.host || process.env.HOST || projectDevServerOptions.host || defaults.host;
-    portfinder.basePort = args.port || process.env.PORT || projectDevServerOptions.port || defaults.port;
+    const host = process.env.HOST || projectDevServerOptions.host || defaults.host;
+    portfinder.basePort = process.env.PORT || projectDevServerOptions.port || defaults.port;
     const port = await portfinder.getPortPromise();
-    const rawPublicUrl = args.public || projectDevServerOptions.public;
+    const rawPublicUrl = projectDevServerOptions.public;
     const publicUrl = rawPublicUrl
       ? /^[a-zA-Z]+:\/\//.test(rawPublicUrl)
         ? rawPublicUrl
@@ -102,7 +93,7 @@ module.exports = (api, options) => {
       protocol,
       host,
       port,
-      isAbsoluteUrl(options.publicPath) ? '/' : options.publicPath,
+      /^([a-z][a-z\d\+\-\.]*:)?\/\//i.test(options.publicPath) ? '/' : options.publicPath,
     );
     const localUrlForBrowser = publicUrl || urls.localUrlForBrowser;
 
@@ -134,8 +125,6 @@ module.exports = (api, options) => {
         require.resolve(projectDevServerOptions.hotOnly
           ? 'webpack/hot/only-dev-server'
           : 'webpack/hot/dev-server'),
-        // TODO custom overlay client
-        // `@vue/cli-overlay/dist/client`
       ];
       if (process.env.APPVEYOR) {
         devClients.push(`webpack/hot/poll?500`);
@@ -169,10 +158,9 @@ module.exports = (api, options) => {
         // eslint-disable-next-line no-shadow
         before(app, server) {
           // launch editor support.
-          // this works with vue-devtools & @vue/cli-overlay
           app.use('/__open-in-editor', launchEditorMiddleware(() => console.log(
             `To specify an editor, specify the EDITOR env variable or ` +
-            `add "editor" field to your Vue project config.\n`,
+            `add "editor" field to your project config.\n`,
           )));
           // allow other plugins to register middlewares, e.g. PWA
           api.service.devServerConfigFns.forEach(fn => fn(app, server));
@@ -194,19 +182,9 @@ module.exports = (api, options) => {
     return new Promise((resolve, reject) => {
       // log instructions & open browser on first compilation complete
       let isFirstCompile = true;
-      compiler.hooks.done.tap('vue-cli-service serve', stats => {
+      compiler.hooks.done.tap('react-cli-service serve', stats => {
         if (stats.hasErrors()) {
           return;
-        }
-
-        let copied = '';
-        if (isFirstCompile && args.copy) {
-          try {
-            require('clipboardy').writeSync(localUrlForBrowser);
-            copied = chalk.dim('(copied to clipboard)');
-          } catch (_) {
-            /* catch exception if copy to clipboard isn't supported (e.g. WSL), see issue #3476 */
-          }
         }
 
         const networkUrl = publicUrl
@@ -215,12 +193,12 @@ module.exports = (api, options) => {
 
         console.log();
         console.log(`  App running at:`);
-        console.log(`  - Local:   ${chalk.cyan(urls.localUrlForTerminal)} ${copied}`);
+        console.log(`  - Local:   ${chalk.cyan(urls.localUrlForTerminal)}`);
         if (!isInContainer) {
           console.log(`  - Network: ${chalk.cyan(networkUrl)}`);
         } else {
           console.log();
-          console.log(chalk.yellow(`  It seems you are running Vue CLI inside a container.`));
+          console.log(chalk.yellow(`  It seems you are running CLI inside a container.`));
           if (!publicUrl && options.publicPath && options.publicPath !== '/') {
             console.log();
             console.log(chalk.yellow(`  Since you are using a non-root publicPath, the hot-reload socket`));
@@ -247,7 +225,7 @@ module.exports = (api, options) => {
           }
           console.log();
 
-          if (args.open || projectDevServerOptions.open) {
+          if (args.open) {
             const pageUri = (projectDevServerOptions.openPage && typeof projectDevServerOptions.openPage === 'string')
               ? projectDevServerOptions.openPage
               : '';

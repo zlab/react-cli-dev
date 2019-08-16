@@ -33,26 +33,24 @@ module.exports = (api, options) => {
       .chunkFilename(outputFilename);
 
     // code splitting
-    if (process.env.NODE_ENV !== 'test') {
-      webpackConfig
-        .optimization.splitChunks({
-        cacheGroups: {
-          vendors: {
-            name: `chunk-vendors`,
-            test: /[\\/]node_modules[\\/]/,
-            priority: -10,
-            chunks: 'initial',
-          },
-          common: {
-            name: `chunk-common`,
-            minChunks: 2,
-            priority: -20,
-            chunks: 'initial',
-            reuseExistingChunk: true,
-          },
+    webpackConfig
+      .optimization.splitChunks({
+      cacheGroups: {
+        vendors: {
+          name: `chunk-vendors`,
+          test: /[\\/]node_modules[\\/]/,
+          priority: -10,
+          chunks: 'initial',
         },
-      });
-    }
+        common: {
+          name: `chunk-common`,
+          minChunks: 2,
+          priority: -20,
+          chunks: 'initial',
+          reuseExistingChunk: true,
+        },
+      },
+    });
 
     // HTML plugin
     const resolveClientEnv = require('../util/resolveClientEnv');
@@ -101,19 +99,6 @@ module.exports = (api, options) => {
       },
     };
 
-    // handle indexPath
-    if (options.indexPath !== 'index.html') {
-      // why not set filename for html-webpack-plugin?
-      // 1. It cannot handle absolute paths
-      // 2. Relative paths causes incorrect SW manifest to be generated (#2007)
-      webpackConfig
-        .plugin('move-index')
-        .use(require('../webpack/MovePlugin'), [
-          path.resolve(outputDir, 'index.html'),
-          path.resolve(outputDir, options.indexPath),
-        ]);
-    }
-
     if (isProd) {
       Object.assign(htmlOptions, {
         minify: {
@@ -145,37 +130,17 @@ module.exports = (api, options) => {
 
     // resolve HTML file(s)
     const HTMLPlugin = require('html-webpack-plugin');
-    const PreloadPlugin = require('@vue/preload-webpack-plugin');
     const multiPageConfig = options.pages;
     const htmlPath = api.resolve('public/index.html');
-    const defaultHtmlPath = path.resolve(__dirname, 'index-default.html');
     const publicCopyIgnore = ['.DS_Store'];
 
     if (!multiPageConfig) {
       // default, single page setup.
-      htmlOptions.template = fs.existsSync(htmlPath)
-        ? htmlPath
-        : defaultHtmlPath;
+      htmlOptions.template = htmlPath;
 
       webpackConfig
         .plugin('html')
         .use(HTMLPlugin, [htmlOptions]);
-
-      // inject preload/prefetch to HTML
-      webpackConfig
-        .plugin('preload')
-        .use(PreloadPlugin, [{
-          rel: 'preload',
-          include: 'initial',
-          fileBlacklist: [/\.map$/, /hot-update\.js$/],
-        }]);
-
-      webpackConfig
-        .plugin('prefetch')
-        .use(PreloadPlugin, [{
-          rel: 'prefetch',
-          include: 'asyncChunks',
-        }]);
     } else {
       // multi-page setup
       webpackConfig.entryPoints.clear();
@@ -190,20 +155,8 @@ module.exports = (api, options) => {
           template = `public/${name}.html`,
           filename = `${name}.html`,
           chunks = ['chunk-vendors', 'chunk-common', name],
+          ...customHtmlOptions
         } = pageConfig;
-
-        // Currently Cypress v3.1.0 comes with a very old version of Node,
-        // which does not support object rest syntax.
-        // (https://github.com/cypress-io/cypress/issues/2253)
-        // So here we have to extract the customHtmlOptions manually.
-        const customHtmlOptions = {};
-        for (const key in pageConfig) {
-          if (
-            !['entry', 'template', 'filename', 'chunks'].includes(key)
-          ) {
-            customHtmlOptions[key] = pageConfig[key];
-          }
-        }
 
         // inject entry
         const entries = Array.isArray(entry) ? entry : [entry];
@@ -214,11 +167,7 @@ module.exports = (api, options) => {
         if (hasDedicatedTemplate) {
           publicCopyIgnore.push(template);
         }
-        const templatePath = hasDedicatedTemplate
-          ? template
-          : fs.existsSync(htmlPath)
-            ? htmlPath
-            : defaultHtmlPath;
+        const templatePath = hasDedicatedTemplate ? template : htmlPath;
 
         // inject html plugin for the page
         const pageHtmlOptions = Object.assign(
@@ -232,57 +181,14 @@ module.exports = (api, options) => {
           customHtmlOptions,
         );
 
-        webpackConfig
-          .plugin(`html-${name}`)
-          .use(HTMLPlugin, [pageHtmlOptions]);
+        webpackConfig.plugin(`html-${name}`).use(HTMLPlugin, [pageHtmlOptions]);
       });
-
-      pages.forEach(name => {
-        const filename = ensureRelative(
-          outputDir,
-          normalizePageConfig(multiPageConfig[name]).filename || `${name}.html`,
-        );
-        webpackConfig
-          .plugin(`preload-${name}`)
-          .use(PreloadPlugin, [{
-            rel: 'preload',
-            includeHtmlNames: [filename],
-            include: {
-              type: 'initial',
-              entries: [name],
-            },
-            fileBlacklist: [/\.map$/, /hot-update\.js$/],
-          }]);
-
-        webpackConfig
-          .plugin(`prefetch-${name}`)
-          .use(PreloadPlugin, [{
-            rel: 'prefetch',
-            includeHtmlNames: [filename],
-            include: {
-              type: 'asyncChunks',
-              entries: [name],
-            },
-          }]);
-      });
-    }
-
-    // CORS and Subresource Integrity
-    if (options.crossorigin != null || options.integrity) {
-      webpackConfig
-        .plugin('cors')
-        .use(require('../webpack/CorsPlugin'), [{
-          crossorigin: options.crossorigin,
-          integrity: options.integrity,
-          publicPath: options.publicPath,
-        }]);
     }
 
     // copy static assets in public/
     const publicDir = api.resolve('public');
     if (fs.existsSync(publicDir)) {
-      webpackConfig
-        .plugin('copy')
+      webpackConfig.plugin('copy')
         .use(require('copy-webpack-plugin'), [[{
           from: publicDir,
           to: outputDir,

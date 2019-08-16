@@ -11,7 +11,6 @@ const schema = createSchema(joi => joi.object({
   productionSourceMap: joi.boolean(),
   parallel: joi.alternatives().try([
     joi.boolean(),
-    joi.number().integer(),
   ]),
   devServer: joi.object(),
   pages: joi.object().pattern(
@@ -28,8 +27,6 @@ const schema = createSchema(joi => joi.object({
       }).unknown(true),
     ]),
   ),
-  crossorigin: joi.string().valid(['', 'anonymous', 'use-credentials']),
-  integrity: joi.boolean(),
 
   // css
   css: joi.object({
@@ -111,13 +108,6 @@ exports.defaults = () => ({
 
   // multi-page config
   pages: undefined,
-
-  // <script type="module" crossorigin="use-credentials">
-  // #1656, #1867, #2025
-  crossorigin: undefined,
-
-  // subresource integrity
-  integrity: false,
 
   css: {
     // extract: true,
