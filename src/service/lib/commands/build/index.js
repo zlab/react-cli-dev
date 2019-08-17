@@ -1,22 +1,6 @@
 const defaults = {
   clean: true,
   target: 'app',
-  formats: 'commonjs,umd,umd-min',
-  'unsafe-inline': true,
-};
-
-const buildModes = {
-  lib: 'library',
-  wc: 'web component',
-  'wc-async': 'web component (async)',
-};
-
-const modifyConfig = (config, fn) => {
-  if (Array.isArray(config)) {
-    config.forEach(c => fn(c));
-  } else {
-    fn(config);
-  }
 };
 
 module.exports = (api, options) => {
@@ -24,14 +8,10 @@ module.exports = (api, options) => {
     description: 'build for production',
     usage: 'react-cli-service build [options] [entry|pattern]',
     options: {
-      '--mode': `specify env mode (default: production)`,
       '--dest': `specify output directory (default: ${options.outputDir})`,
-      '--no-unsafe-inline': `build app without introducing inline scripts`,
-      '--target': `app | lib | wc | wc-async (default: ${defaults.target})`,
-      '--formats': `list of output formats for library builds (default: ${defaults.formats})`,
+      '--target': `app | lib (default: ${defaults.target})`,
       '--name': `name for lib or web-component mode (default: "name" in package.json or entry filename)`,
       '--filename': `file name for output, only usable for 'lib' target (default: value of --name)`,
-      '--no-clean': `do not remove the dist directory before building the project`,
       '--report': `generate report.html to help analyze bundle content`,
     },
   }, async (args) => {
@@ -40,7 +20,7 @@ module.exports = (api, options) => {
         args[key] = defaults[key];
       }
     }
-    args.entry = args.entry || args._[0];
+
     if (args.target !== 'app') {
       args.entry = args.entry || 'src/main.js';
     }
@@ -59,7 +39,6 @@ async function build(args, api, options) {
   const chalk = require('chalk');
   const webpack = require('webpack');
   const formatStats = require('./formatStats');
-  const validateWebpackConfig = require('../../util/validateWebpackConfig');
   const {
     log,
     done,
@@ -69,17 +48,12 @@ async function build(args, api, options) {
   } = require('@vue/cli-shared-utils');
 
   log();
+
   const mode = api.service.mode;
   if (args.target === 'app') {
     logWithSpinner(`Building for ${mode}...`);
   } else {
-    const buildMode = buildModes[args.target];
-    if (buildMode) {
-      const additionalParams = buildMode === 'library' ? ` (${args.formats})` : ``;
-      logWithSpinner(`Building for ${mode} as ${buildMode}${additionalParams}...`);
-    } else {
-      throw new Error(`Unknown build target: ${args.target}`);
-    }
+    logWithSpinner(`Building for ${mode} as library (commonjs)...`);
   }
 
   if (args.dest) {
@@ -97,20 +71,15 @@ async function build(args, api, options) {
     webpackConfig = require('./resolveAppConfig')(api, args, options);
   }
 
-  // check for common config errors
-  validateWebpackConfig(webpackConfig, api, options, args.target);
-
   if (args.report) {
     const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
-    modifyConfig(webpackConfig, config => {
-      const bundleName = args.target !== 'app' ? config.output.filename.replace(/\.js$/, '-') : '';
-      config.plugins.push(new BundleAnalyzerPlugin({
-        logLevel: 'warn',
-        openAnalyzer: false,
-        analyzerMode: 'static',
-        reportFilename: `${bundleName}report.html`,
-      }));
-    });
+    const bundleName = args.target !== 'app' ? webpackConfig.output.filename.replace(/\.js$/, '-') : '';
+    webpackConfig.plugins.push(new BundleAnalyzerPlugin({
+      logLevel: 'warn',
+      openAnalyzer: false,
+      analyzerMode: 'static',
+      reportFilename: `${bundleName}report.html`,
+    }));
   }
 
   if (args.clean) {

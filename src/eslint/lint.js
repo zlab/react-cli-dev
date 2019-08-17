@@ -65,9 +65,7 @@ module.exports = function lint(args = {}, api) {
         .some(p => !engine.isPathIgnored(p)),
     );
 
-  const files = args._ && args._.length
-    ? args._
-    : defaultFilesToLint;
+  const files = defaultFilesToLint;
 
   // mock process.cwd before executing
   // See:

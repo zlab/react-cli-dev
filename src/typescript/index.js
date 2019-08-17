@@ -33,16 +33,15 @@ module.exports = (api, projectOptions) => {
         'ts-loader': require('ts-loader/package.json').version,
         'typescript': require('typescript/package.json').version,
         modern: false,
-      }, 'tsconfig.json'),
+      }, ['tsconfig.json']),
     });
 
     if (useThreads) {
       addLoader({ loader: 'thread-loader' });
     }
 
-    if (api.hasPlugin('babel')) {
-      addLoader({ loader: 'babel-loader' });
-    }
+    addLoader({ loader: 'babel-loader' });
+
     addLoader({
       loader: 'ts-loader',
       options: {

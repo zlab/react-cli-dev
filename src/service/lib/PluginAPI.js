@@ -58,11 +58,7 @@ class PluginAPI {
    *   (args: { [string]: string }, rawArgs: string[]) => ?Promise
    */
   registerCommand(name, opts, fn) {
-    if (typeof opts === 'function') {
-      fn = opts;
-      opts = null;
-    }
-    this.service.commands[name] = { fn, opts: opts || {} };
+    this.service.commands[name] = { fn, opts };
   }
 
   /**
@@ -140,24 +136,19 @@ class PluginAPI {
 
     const variables = {
       partialIdentifier,
-      'cli-service': require('../package.json').version,
+      'cli-service': require(this.resolve('package.json')).version,
       'cache-loader': require('cache-loader/package.json').version,
       env: process.env.NODE_ENV,
-      test: !!process.env.VUE_CLI_TEST,
+      test: false,
       config: [
         fmtFunc(this.service.projectOptions.chainWebpack),
         fmtFunc(this.service.projectOptions.configureWebpack),
       ],
     };
 
-    if (!Array.isArray(configFiles)) {
-      configFiles = [configFiles];
-    }
-
     configFiles = configFiles.concat([
       'package-lock.json',
       'yarn.lock',
-      'pnpm-lock.yaml',
     ]);
 
     const readConfig = file => {

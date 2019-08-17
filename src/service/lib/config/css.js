@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const getAssetPath = require('../util/getAssetPath');
 
 const findExisting = (context, files) => {
   for (const file of files) {
@@ -11,7 +12,6 @@ const findExisting = (context, files) => {
 
 module.exports = (api, rootOptions) => {
   api.chainWebpack(webpackConfig => {
-    const getAssetPath = require('../util/getAssetPath');
     const isProd = process.env.NODE_ENV === 'production';
 
     const defaultSassLoaderOptions = {};

@@ -1,146 +1,98 @@
 const fs = require('fs');
-const path = require('path');
+const { log, error } = require('@vue/cli-shared-utils');
+const browserslist = require('browserslist');
 
-module.exports = (api, { entry, name, formats, filename }) => {
-  const { log, error } = require('@vue/cli-shared-utils');
-  const abort = msg => {
-    log();
-    error(msg);
-    process.exit(1);
-  };
-
+module.exports = (api, { entry, name, filename }) => {
   const fullEntryPath = api.resolve(entry);
 
   if (!fs.existsSync(fullEntryPath)) {
-    abort(
+    log();
+    error(
       `Failed to resolve lib entry: ${entry}. ` +
-      `Make sure to specify the correct entry file.`,
-    );
+      `Make sure to specify the correct entry file.`);
+    process.exit(1);
   }
 
-  const libName = (
-    name ||
-    (
-      api.service.pkg.name
-        ? api.service.pkg.name.replace(/^@.+\//, '')
-        : path.basename(entry).replace(/\.(jsx?)$/, '')
-    )
-  );
+  const libName = name || api.service.pkg.name.replace(/^@.+\//, '');
+
   filename = filename || libName;
 
-  function genConfig(format, postfix = format, genHTML) {
-    const config = api.resolveChainableWebpackConfig();
+  let format = 'commonjs2', postfix = 'common';
 
-    const browserslist = require('browserslist');
-    const targets = browserslist(undefined, { path: fullEntryPath });
-    const supportsIE = targets.some(agent => agent.includes('ie'));
+  const config = api.resolveChainableWebpackConfig();
 
-    const webpack = require('webpack');
-    config.plugin('need-current-script-polyfill')
-      .use(webpack.DefinePlugin, [{
-        'process.env.NEED_CURRENTSCRIPT_POLYFILL': JSON.stringify(supportsIE),
-      }]);
+  const targets = browserslist(undefined, { path: fullEntryPath });
+  const supportsIE = targets.some(agent => agent.includes('ie'));
 
-    // adjust css output name so they write to the same file
-    if (config.plugins.has('extract-css')) {
-      config
-        .plugin('extract-css')
-        .tap(args => {
-          args[0].filename = `${filename}.css`;
-          return args;
-        });
-    }
+  const webpack = require('webpack');
+  config.plugin('need-current-script-polyfill')
+    .use(webpack.DefinePlugin, [{
+      'process.env.NEED_CURRENTSCRIPT_POLYFILL': JSON.stringify(supportsIE),
+    }]);
 
-    // only minify min entry
-    if (!/\.min/.test(postfix)) {
-      config.optimization.minimize(false);
-    }
-
-    // externalize React in case user imports it
-    config
-      .externals({
-        ...config.get('externals'),
-        react: {
-          commonjs: 'react',
-          commonjs2: 'react',
-          root: 'React',
-        },
+  // adjust css output name so they write to the same file
+  if (config.plugins.has('extract-css')) {
+    config.plugin('extract-css')
+      .tap(args => {
+        args[0].filename = `${filename}.css`;
+        return args;
       });
-
-    // inject demo page for umd
-    if (genHTML) {
-      const template = 'demo-lib-js.html';
-      config
-        .plugin('demo-html')
-        .use(require('html-webpack-plugin'), [{
-          template: path.resolve(__dirname, template),
-          inject: false,
-          filename: 'demo.html',
-          libName,
-          assetsFileName: filename,
-          cssExtract: config.plugins.has('extract-css'),
-        }]);
-    }
-
-    // resolve entry/output
-    const entryName = `${filename}.${postfix}`;
-    config.resolve
-      .alias
-      .set('~entry', fullEntryPath);
-
-    // set output target before user configureWebpack hooks are applied
-    config.output.libraryTarget(format);
-
-    // set entry/output after user configureWebpack hooks are applied
-    const rawConfig = api.resolveWebpackConfig(config);
-
-    let realEntry = require.resolve('./entry-lib.js');
-
-    // avoid importing default if user entry file does not have default export
-    const entryContent = fs.readFileSync(fullEntryPath, 'utf-8');
-    if (!/\b(export\s+default|export\s{[^}]+as\s+default)\b/.test(entryContent)) {
-      realEntry = require.resolve('./entry-lib-no-default.js');
-    }
-
-    rawConfig.entry = {
-      [entryName]: realEntry,
-    };
-
-    rawConfig.output = Object.assign({
-      library: libName,
-      libraryExport: undefined,
-      libraryTarget: format,
-      // preserve UDM header from webpack 3 until webpack provides either
-      // libraryTarget: 'esm' or target: 'universal'
-      // https://github.com/webpack/webpack/issues/6522
-      // https://github.com/webpack/webpack/issues/6525
-      globalObject: `(typeof self !== 'undefined' ? self : this)`,
-    }, rawConfig.output, {
-      filename: `${entryName}.js`,
-      chunkFilename: `${entryName}.[name].js`,
-      // use dynamic publicPath so this can be deployed anywhere
-      // the actual path will be determined at runtime by checking
-      // document.currentScript.src.
-      publicPath: '',
-    });
-
-    return rawConfig;
   }
 
-  const configMap = {
-    commonjs: genConfig('commonjs2', 'common'),
-    umd: genConfig('umd', undefined, true),
-    'umd-min': genConfig('umd', 'umd.min'),
+  // only minify min entry
+  if (!/\.min/.test(postfix)) {
+    config.optimization.minimize(false);
+  }
+
+  // externalize React in case user imports it
+  config.externals({
+    ...config.get('externals'),
+    react: {
+      commonjs: 'react',
+      commonjs2: 'react',
+      root: 'React',
+    },
+  });
+
+  // resolve entry/output
+  const entryName = `${filename}.${postfix}`;
+  config.resolve.alias.set('~entry', fullEntryPath);
+
+  // set output target before user configureWebpack hooks are applied
+  config.output.libraryTarget(format);
+
+  // set entry/output after user configureWebpack hooks are applied
+  const rawConfig = api.resolveWebpackConfig(config);
+
+  let realEntry = require.resolve('./entry-lib.js');
+
+  // avoid importing default if user entry file does not have default export
+  const entryContent = fs.readFileSync(fullEntryPath, 'utf-8');
+  if (!/\b(export\s+default|export\s{[^}]+as\s+default)\b/.test(entryContent)) {
+    realEntry = require.resolve('./entry-lib-no-default.js');
+  }
+
+  rawConfig.entry = {
+    [entryName]: realEntry,
   };
 
-  const formatArray = (formats + '').split(',');
-  const configs = formatArray.map(format => configMap[format]);
-  if (configs.indexOf(undefined) !== -1) {
-    const unknownFormats = formatArray.filter(f => configMap[f] === undefined).join(', ');
-    abort(
-      `Unknown library build formats: ${unknownFormats}`,
-    );
-  }
+  rawConfig.output = Object.assign({
+    library: libName,
+    libraryExport: undefined,
+    libraryTarget: format,
+    // preserve UDM header from webpack 3 until webpack provides either
+    // libraryTarget: 'esm' or target: 'universal'
+    // https://github.com/webpack/webpack/issues/6522
+    // https://github.com/webpack/webpack/issues/6525
+    globalObject: `(typeof self !== 'undefined' ? self : this)`,
+  }, rawConfig.output, {
+    filename: `${entryName}.js`,
+    chunkFilename: `${entryName}.[name].js`,
+    // use dynamic publicPath so this can be deployed anywhere
+    // the actual path will be determined at runtime by checking
+    // document.currentScript.src.
+    publicPath: '',
+  });
 
-  return configs;
+  return rawConfig;
 };

@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const debug = require('debug');
-const chalk = require('chalk');
 const readPkg = require('read-pkg');
 const merge = require('webpack-merge');
 const Config = require('webpack-chain');
@@ -9,46 +8,54 @@ const PluginAPI = require('./PluginAPI');
 const dotenv = require('dotenv');
 const dotenvExpand = require('dotenv-expand');
 const defaultsDeep = require('lodash.defaultsdeep');
-const { warn, error, isPlugin, loadModule } = require('@vue/cli-shared-utils');
+const { error } = require('@vue/cli-shared-utils');
 
 const { defaults, validate } = require('./options');
 
 module.exports = class Service {
-  constructor(context) {
-    this.initialized = false;
+  constructor(context, args) {
     this.context = context;
+    this.command = args._.shift();
+    this.args = args;
     this.webpackChainFns = [];
     this.webpackRawConfigFns = [];
     this.devServerConfigFns = [];
     this.commands = {};
     this.pkg = readPkg.sync({ cwd: context });
     this.plugins = this.resolvePlugins();
-    // resolve the default mode to use for each command
-    // this is provided by plugins as module.exports.defaultModes
-    // so we can get the information without actually applying the plugin.
     this.modes = this.plugins.reduce((modes, { apply: { defaultModes } }) => {
       return Object.assign(modes, defaultModes);
     }, {});
+    this.mode = this.modes[this.command];
   }
 
-  init(mode) {
-    if (this.initialized) {
-      return;
+  run() {
+    // load env variables, load user config, apply plugins
+    this.init();
+
+    let command = this.commands[this.command];
+    if (!command && this.command) {
+      error(`command "${this.command}" does not exist.`);
+      process.exit(1);
     }
-    this.initialized = true;
-    this.mode = mode;
+
+    return command.fn(this.args);
+  }
+
+  init() {
+    process.env.NODE_ENV = (this.mode === 'production' ? this.mode : 'development');
 
     // load mode .env
-    if (mode) {
-      this.loadEnv(mode);
-    }
+    this.loadEnv(this.mode);
+
     // load base .env
     this.loadEnv();
 
     // load user config
     const userOptions = this.loadUserOptions();
-    this.projectOptions = defaultsDeep(userOptions, defaults());
+    debug('user-config')(userOptions);
 
+    this.projectOptions = defaultsDeep(userOptions, defaults());
     debug('project-config')(this.projectOptions);
 
     // apply plugins.
@@ -86,20 +93,6 @@ module.exports = class Service {
 
     load(localPath);
     load(basePath);
-
-    // by default, NODE_ENV and BABEL_ENV are set to "development" unless mode
-    // is production or test. However the value in .env files will take higher
-    // priority.
-    if (mode) {
-      // always set NODE_ENV during tests
-      // as that is necessary for tests to not be affected by each other
-      const defaultNodeEnv = (mode === 'production' || mode === 'test')
-        ? mode
-        : 'development';
-      if (process.env.NODE_ENV == null) {
-        process.env.NODE_ENV = defaultNodeEnv;
-      }
-    }
   }
 
   resolvePlugins() {
@@ -125,31 +118,8 @@ module.exports = class Service {
     //   .filter(isPlugin)
   }
 
-  async run(name, args = {}, rawArgv = []) {
-    const mode = this.modes[name];
-
-    // load env variables, load user config, apply plugins
-    this.init(mode);
-
-    args._ = args._ || [];
-    let command = this.commands[name];
-    if (!command && name) {
-      error(`command "${name}" does not exist.`);
-      process.exit(1);
-    }
-    if (!command || args.help) {
-      command = this.commands.help;
-    } else {
-      args._.shift(); // remove command itself
-      rawArgv.shift();
-    }
-    const { fn } = command;
-    return fn(args, rawArgv);
-  }
-
   resolveChainableWebpackConfig() {
     const chainableConfig = new Config();
-    // apply chains
     this.webpackChainFns.forEach(fn => fn(chainableConfig));
     return chainableConfig;
   }
@@ -180,18 +150,6 @@ module.exports = class Service {
       );
     }
 
-    // check if the user has manually mutated output.publicPath
-    const target = process.env.VUE_CLI_BUILD_TARGET;
-    if (
-      (target && target !== 'app') &&
-      config.output.publicPath !== this.projectOptions.publicPath
-    ) {
-      throw new Error(
-        `Do not modify webpack output.publicPath directly. ` +
-        `Use the "publicPath" option instead.`,
-      );
-    }
-
     if (typeof config.entry !== 'function') {
       let entryFiles;
       if (typeof config.entry === 'string') {
@@ -218,26 +176,12 @@ module.exports = class Service {
       options = require(configPath)();
     }
 
-    if (options.css && typeof options.css.modules !== 'undefined') {
-      if (typeof options.css.requireModuleExtension !== 'undefined') {
-        warn(
-          `You have set both "css.modules" and "css.requireModuleExtension" in ${chalk.bold('react.config.js')}, ` +
-          `"css.modules" will be ignored in favor of "css.requireModuleExtension".`,
-        );
-      } else {
-        warn(
-          `"css.modules" option in ${chalk.bold('react.config.js')} ` +
-          `is deprecated now, please use "css.requireModuleExtension" instead.`,
-        );
-        options.css.requireModuleExtension = !options.css.modules;
-      }
-    }
-
     // normalize some options
     ensureSlash(options, 'publicPath');
     if (typeof options.publicPath === 'string') {
       options.publicPath = options.publicPath.replace(/^\.\//, '');
     }
+
     removeSlash(options, 'outputDir');
 
     // validate options

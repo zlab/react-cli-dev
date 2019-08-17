@@ -6,7 +6,6 @@ const schema = createSchema(joi => joi.object({
   assetsDir: joi.string().allow(''),
   indexPath: joi.string(),
   filenameHashing: joi.boolean(),
-  runtimeCompiler: joi.boolean(),
   transpileDependencies: joi.array(),
   productionSourceMap: joi.boolean(),
   parallel: joi.alternatives().try([
@@ -30,7 +29,6 @@ const schema = createSchema(joi => joi.object({
 
   // css
   css: joi.object({
-    // TODO: deprecate this after joi 16 release
     modules: joi.boolean(),
     requireModuleExtension: joi.boolean(),
     extract: joi.alternatives().try(joi.boolean(), joi.object()),
@@ -91,9 +89,6 @@ exports.defaults = () => ({
   // whether filename will contain hash part
   filenameHashing: true,
 
-  // boolean, use full build?
-  runtimeCompiler: false,
-
   // deps to transpile
   transpileDependencies: [
     /* string or regex */
@@ -120,10 +115,10 @@ exports.defaults = () => ({
   lintOnSave: 'default',
 
   devServer: {
-    /*
-    open: process.platform === 'darwin',
     host: '0.0.0.0',
     port: 8080,
+    /*
+    open: process.platform === 'darwin',
     https: false,
     hotOnly: false,
     proxy: null, // string | Object

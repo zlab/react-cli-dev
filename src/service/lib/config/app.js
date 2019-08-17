@@ -1,6 +1,10 @@
 // config that are specific to --target app
 const fs = require('fs');
 const path = require('path');
+const HTMLPlugin = require('html-webpack-plugin');
+const getAssetPath = require('../util/getAssetPath');
+const resolveClientEnv = require('../util/resolveClientEnv');
+const chunkSorters = require('html-webpack-plugin/lib/chunksorter');
 
 // ensure the filename passed to html-webpack-plugin is a relative path
 // because it cannot correctly handle absolute paths
@@ -22,7 +26,6 @@ module.exports = (api, options) => {
     const isProd = process.env.NODE_ENV === 'production';
     const outputDir = api.resolve(options.outputDir);
 
-    const getAssetPath = require('../util/getAssetPath');
     const outputFilename = getAssetPath(
       options,
       `js/[name]}${isProd && options.filenameHashing ? '.[contenthash:8]' : ''}.js`,
@@ -33,8 +36,7 @@ module.exports = (api, options) => {
       .chunkFilename(outputFilename);
 
     // code splitting
-    webpackConfig
-      .optimization.splitChunks({
+    webpackConfig.optimization.splitChunks({
       cacheGroups: {
         vendors: {
           name: `chunk-vendors`,
@@ -53,12 +55,10 @@ module.exports = (api, options) => {
     });
 
     // HTML plugin
-    const resolveClientEnv = require('../util/resolveClientEnv');
 
     // #1669 html-webpack-plugin's default sort uses toposort which cannot
     // handle cyclic deps in certain cases. Monkey patch it to handle the case
     // before we can upgrade to its 4.0 version (incompatible with preload atm)
-    const chunkSorters = require('html-webpack-plugin/lib/chunksorter');
     const depSort = chunkSorters.dependency;
     chunkSorters.auto = chunkSorters.dependency = (chunks, ...args) => {
       try {
@@ -129,7 +129,6 @@ module.exports = (api, options) => {
     }
 
     // resolve HTML file(s)
-    const HTMLPlugin = require('html-webpack-plugin');
     const multiPageConfig = options.pages;
     const htmlPath = api.resolve('public/index.html');
     const publicCopyIgnore = ['.DS_Store'];

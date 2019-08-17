@@ -50,9 +50,7 @@ module.exports = function lint(args = {}, api, silent) {
     );
   };
 
-  const patterns = args._ && args._.length
-    ? args._
-    : ['src/**/*.ts', 'src/**/*.tsx', 'tests/**/*.ts', 'tests/**/*.tsx'];
+  const patterns = ['src/**/*.ts', 'src/**/*.tsx', 'tests/**/*.ts', 'tests/**/*.tsx'];
 
   // respect linterOptions.exclude from tslint.json
   if (config.linterOptions && config.linterOptions.exclude) {

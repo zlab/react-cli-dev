@@ -1,3 +1,8 @@
+const chalk = require('chalk');
+const { get } = require('@vue/cli-shared-utils');
+const { toString } = require('webpack-chain');
+const { highlight } = require('cli-highlight');
+
 module.exports = (api, options) => {
   api.registerCommand(
     'inspect',
@@ -14,10 +19,6 @@ module.exports = (api, options) => {
       },
     },
     args => {
-      const chalk = require('chalk');
-      const { get } = require('@vue/cli-shared-utils');
-      const { toString } = require('webpack-chain');
-      const { highlight } = require('cli-highlight');
       const config = api.resolveWebpackConfig();
       const { _: paths, verbose } = args;
 

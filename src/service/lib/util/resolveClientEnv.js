@@ -1,4 +1,4 @@
-const prefixRE = /^APP_/;
+const prefixRE = /^REACT_APP_/;
 
 module.exports = function resolveClientEnv(options) {
   const env = {};

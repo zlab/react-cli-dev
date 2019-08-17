@@ -1,4 +1,5 @@
 {
+  "name": "xxx",
   "private": true,
   "bin": {
     "react-cli-service": "src/service/bin/react-cli-service.js"
